@@ -1,0 +1,101 @@
+// Modification of recipe 10.6.1
+// Selective sweep at a neutral locus from std variation,
+// given a certain dominance and selfing coefficient
+
+// Initialisation block
+// Define population size, selection coefficients etc.
+initialize() {
+	defineConstant("locus_size",100000);
+	defineConstant("N",500);
+	defineConstant("Theta",40);
+	defineConstant("R",120);
+	defineConstant("sel",0.1);
+	defineConstant("h",0.5);
+	defineConstant("sfrate",0.5);
+	defineConstant("BItime",2*N);
+	defineConstant("x0",0.05);
+	defineConstant("EndTime",10*N);
+	
+	mu = Theta/(4*N*locus_size);
+	rbp = R/(2*N*(locus_size-1));
+	
+	initializeMutationRate(mu);
+	initializeMutationType("m1", h, "f", 0.0);
+	m1.mutationStackPolicy = "f";						// No neutral mutation stacking
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, locus_size-1);
+	initializeRecombinationRate(rbp);
+}
+
+// Starting block
+// Creating a pop with selfing rate, and setting up timing of other blocks
+// BITime = burn-in time; EndTime = stop simulation here if nothing has happened
+1 {
+	// save this run's identifier, used to save and restore
+	defineConstant("simID", getSeed());
+	
+	sim.addSubpop("p1", N);
+	p1.setSelfingRate(sfrate);
+	sim.rescheduleScriptBlock(s1,BItime,BItime);
+	sim.rescheduleScriptBlock(s2,BItime,EndTime);
+	sim.rescheduleScriptBlock(s3,EndTime,EndTime);
+}
+
+// 'Choosing mutation' block
+// Picks a random neutral mutation to track
+s1 10 late() {
+	// save the state of the simulation
+	// sim.outputFull("/tmp/slim_" + simID + ".txt");
+	print(sim.generation);
+	muts = sim.mutations;
+	bmut = sample(muts, 1);		// Choosing base neutral mutant to track
+	if(exists("MutID"))
+		rm("MutID",removeConstants=T);
+	defineConstant("MutID",bmut.id);
+}
+
+// Tracking mutation block
+// Tracks chosen neutral mutation until it reaches target frequency
+// Or goes extinct (either loss or fixation - in any case it is not in memory)
+s2 20 late() {
+	
+	print(sim.generation);
+	bmut=sim.mutations[sim.mutations.id==MutID];
+	print(bmut);
+	print(sim.mutationFrequencies(p1, bmut));
+	print(size(bmut));
+	cat("\n");
+	
+	// Does mutation exist?
+	doexist = size(bmut);
+	// If so and at target frequency, changed to selected
+	if(doexist)
+		if((sim.mutationFrequencies(p1, bmut) == x0))
+		{
+			bmut.setSelectionCoeff(sel);
+			cat("Setting chosen allele as selected mutation.\n");
+			cat("\n");
+			sim.simulationFinished();
+		}
+
+	//	If does not exist, re-do mutation choosing block
+	// and re-time other blocks accordingly
+	if(!doexist)
+	{
+		cat("Chosen allele went extinct.\n");
+		cat("\n");
+		ct=sim.generation;
+		sim.rescheduleScriptBlock(s1,ct+1,ct+1);
+		sim.rescheduleScriptBlock(s2,ct+1,EndTime);
+		sim.rescheduleScriptBlock(s3,EndTime,EndTime);
+	}
+	
+}
+
+// End simulation block
+// If simulation goes on long enough without finding an appropriate mutation,
+// ends with warning
+s3 10 late() {
+	cat("NO SUITABLE MUTATION FOUND AT END OF TIME.\n");
+	sim.simulationFinished();
+}
