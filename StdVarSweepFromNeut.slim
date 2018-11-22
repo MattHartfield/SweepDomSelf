@@ -1,11 +1,17 @@
+// Wed 21st Nov 2018
 // Modification of recipe 10.6.1
 // Selective sweep at a neutral locus from std variation,
 // given a certain dominance and selfing coefficient
 
+// To do:
+// See if easy to only sample in vicinity of sweep, otherwise do it afterwards in R
+// Test code, make sure all works as it should
+// Add in commands so that one can feed in variables from command line
+// Tidy up print commands where no longer needed
+
 // Initialisation block
 // Define population size, selection coefficients etc.
 initialize() {
-	setSeed(1554008196719);
 	defineConstant("locus_size",100000);
 	defineConstant("N",500);
 	defineConstant("Theta",40);
@@ -13,9 +19,9 @@ initialize() {
 	defineConstant("sel",0.1);
 	defineConstant("h",0.5);
 	defineConstant("sfrate",0.5);
-	defineConstant("BItime",2*N);
+	defineConstant("BItime",10*N);
 	defineConstant("x0",0.05);
-	defineConstant("EndTime",10*N);
+	defineConstant("EndTime",20*N);
 	
 	mu = Theta/(4*N*locus_size);
 	rbp = R/(2*N*(locus_size-1));
@@ -47,7 +53,7 @@ initialize() {
 // Picks a random neutral mutation to track
 s1 10 late() {
 	// save the state of the simulation
-	// sim.outputFull("/tmp/slim_" + simID + ".txt");
+	sim.outputFull("/Users/hartfield/Documents/SoftSweeps/SLiM/Sim" + simID + ".txt");
 	muts = sim.mutations;
 	bmut = sample(muts, 1);		// Choosing base neutral mutant to track
 	if(exists("MutID"))
@@ -63,6 +69,7 @@ s2 20 late() {
 	print(sim.generation);
 	bmut=sim.mutations[sim.mutations.id==MutID];
 	print(bmut);
+	print(bmut.position);
 	print(sim.mutationFrequencies(p1, bmut));
 	print(size(bmut));
 	cat("\n");
@@ -77,8 +84,8 @@ s2 20 late() {
 			cat("Setting chosen allele as selected mutation.\n");
 			cat("\n");
 			ct=sim.generation;
-			//			sim.rescheduleScriptBlock(s2,ct+1,ct+1);
-			sim.deregisterScriptBlock(s2);
+			sim.rescheduleScriptBlock(s2,EndTime+1,EndTime+1);
+			// sim.deregisterScriptBlock(s2);
 			sim.rescheduleScriptBlock(s3,ct+1,EndTime);
 			sim.rescheduleScriptBlock(s4,EndTime,EndTime);
 			//			sim.simulationFinished();
@@ -107,17 +114,38 @@ s3 10 late(){
 	print(sim.generation);
 	bmut=sim.mutations[sim.mutations.id==MutID];
 	print(bmut);
+	print(bmut.position);
 	print(sim.mutationFrequencies(p1, bmut));
 	print(size(bmut));
 	cat("\n");
 	
 	if (sum(sim.mutations.selectionCoeff) == 0.0)
 	{
+		// If lost, reintroduce saved background state and try again
 		if (sum(sim.substitutions.selectionCoeff) == 0.0)
+		{
 			cat("Sweep mutation lost in gen. " + sim.generation + "\n");
+			sim.readFromPopulationFile("/Users/hartfield/Documents/SoftSweeps/SLiM/Sim" + simID + ".txt");			
+			// start a newly seeded run by incrementing the previous seed
+			setSeed(getSeed() + 1);
+			
+			// Resetting block schedules
+			ct=sim.generation;
+			sim.rescheduleScriptBlock(s1,ct+1,ct+1);
+			sim.rescheduleScriptBlock(s2,ct+1,EndTime);
+			sim.rescheduleScriptBlock(s3,EndTime+1,EndTime+1);
+			sim.rescheduleScriptBlock(s4,EndTime,EndTime);
+		}
 		else
+		{
 			cat("Sweep mutation reached fixation.\n");
-		sim.simulationFinished();
+			// To do: sample from final state, within specific range of the target?
+			for(i in 1:10){
+				p1.outputSample(10,replace=F);
+				cat("\n");
+			}
+			sim.simulationFinished();
+		}
 	}
 }
 
