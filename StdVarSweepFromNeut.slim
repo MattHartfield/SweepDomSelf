@@ -5,6 +5,7 @@
 // Initialisation block
 // Define population size, selection coefficients etc.
 initialize() {
+	setSeed(1554008196719);
 	defineConstant("locus_size",100000);
 	defineConstant("N",500);
 	defineConstant("Theta",40);
@@ -38,7 +39,8 @@ initialize() {
 	p1.setSelfingRate(sfrate);
 	sim.rescheduleScriptBlock(s1,BItime,BItime);
 	sim.rescheduleScriptBlock(s2,BItime,EndTime);
-	sim.rescheduleScriptBlock(s3,EndTime,EndTime);
+	sim.rescheduleScriptBlock(s3,EndTime+1,EndTime+1);
+	sim.rescheduleScriptBlock(s4,EndTime,EndTime);
 }
 
 // 'Choosing mutation' block
@@ -46,7 +48,6 @@ initialize() {
 s1 10 late() {
 	// save the state of the simulation
 	// sim.outputFull("/tmp/slim_" + simID + ".txt");
-	print(sim.generation);
 	muts = sim.mutations;
 	bmut = sample(muts, 1);		// Choosing base neutral mutant to track
 	if(exists("MutID"))
@@ -66,8 +67,8 @@ s2 20 late() {
 	print(size(bmut));
 	cat("\n");
 	
-	// Does mutation exist?
 	doexist = size(bmut);
+	// Does mutation exist?
 	// If so and at target frequency, changed to selected
 	if(doexist)
 		if((sim.mutationFrequencies(p1, bmut) == x0))
@@ -75,9 +76,14 @@ s2 20 late() {
 			bmut.setSelectionCoeff(sel);
 			cat("Setting chosen allele as selected mutation.\n");
 			cat("\n");
-			sim.simulationFinished();
+			ct=sim.generation;
+			//			sim.rescheduleScriptBlock(s2,ct+1,ct+1);
+			sim.deregisterScriptBlock(s2);
+			sim.rescheduleScriptBlock(s3,ct+1,EndTime);
+			sim.rescheduleScriptBlock(s4,EndTime,EndTime);
+			//			sim.simulationFinished();
 		}
-
+	
 	//	If does not exist, re-do mutation choosing block
 	// and re-time other blocks accordingly
 	if(!doexist)
@@ -87,15 +93,38 @@ s2 20 late() {
 		ct=sim.generation;
 		sim.rescheduleScriptBlock(s1,ct+1,ct+1);
 		sim.rescheduleScriptBlock(s2,ct+1,EndTime);
-		sim.rescheduleScriptBlock(s3,EndTime,EndTime);
+		sim.rescheduleScriptBlock(s4,EndTime,EndTime);
 	}
 	
+	cat("Sum of sel coefficients is " + sum(sim.mutations.selectionCoeff) + "\n");
+
+}
+
+// Tracking selected mutation block
+// Tracks the selected mutation until fixation or loss
+s3 10 late(){
+	
+	print(sim.generation);
+	bmut=sim.mutations[sim.mutations.id==MutID];
+	print(bmut);
+	print(sim.mutationFrequencies(p1, bmut));
+	print(size(bmut));
+	cat("\n");
+	
+	if (sum(sim.mutations.selectionCoeff) == 0.0)
+	{
+		if (sum(sim.substitutions.selectionCoeff) == 0.0)
+			cat("Sweep mutation lost in gen. " + sim.generation + "\n");
+		else
+			cat("Sweep mutation reached fixation.\n");
+		sim.simulationFinished();
+	}
 }
 
 // End simulation block
 // If simulation goes on long enough without finding an appropriate mutation,
 // ends with warning
-s3 10 late() {
+s4 10 late() {
 	cat("NO SUITABLE MUTATION FOUND AT END OF TIME.\n");
 	sim.simulationFinished();
 }
