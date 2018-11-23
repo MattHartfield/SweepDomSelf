@@ -3,27 +3,20 @@
 // Selective sweep at a neutral locus from std variation,
 // given a certain dominance and selfing coefficient
 
-// To do:
-// Test code, make sure all works as it should
-// Add in commands so that one can feed in variables from command line
-// Tidy up print commands where no longer needed
-// Print out each sample to individual files - also need to work out how to organise output files
-
 // Initialisation block
 // Define population size, selection coefficients etc.
 initialize() {
-	setSeed(1656939188211);
 	defineConstant("locus_size",100000);		// Size of genotype (L)
-	defineConstant("N",500);						// Pop size
-	defineConstant("Theta",40);					// Scaled mutation rate, 4NmuL
-	defineConstant("R",120);						// Scaled rec rate, 2Nr(L-1)
+	// defineConstant("N",500);					//	Pop size
+	// defineConstant("Theta",40);				//	Scaled mutation rate, 4NmuL
+	// defineConstant("R",120);					//	Scaled rec rate, 2Nr(L-1)
 	defineConstant("sel",0.05);					// Homozygote selection coefficient
 	defineConstant("BItime",20*N);				// Burn-in time
-	defineConstant("EndTime",40*N);				// Stop simulation at this time if nothing has happened
-	defineConstant("x0",0.05);						// Frequency of neutral mutation when it became selected for
-	defineConstant("h",0.5);						// Dominance coefficient
-	defineConstant("sfrate",0.5);					// Self-fertiliastion frequency
-	defineConstant("simID",0);						// Index for printing out files
+	defineConstant("EndTime",100*N);				// Stop simulation at this time if nothing has happened
+	// defineConstant("x0",0.05);					//	Frequency of neutral mutation when it became selected for
+	// defineConstant("h",0.5);					//	Dominance coefficient
+	// defineConstant("sfrate",0.5);				//	Self-fertiliastion frequency
+	// defineConstant("simID",0);					//	Index for printing out files
 	
 	mu = Theta/(4*N*locus_size);
 	rbp = R/(2*N*(locus_size-1));
@@ -40,6 +33,8 @@ initialize() {
 // Creating a pop with selfing rate, and setting up timing of other blocks
 // BITime = burn-in time; EndTime = stop simulation here if nothing has happened
 1 {
+	outseed = paste(getSeed());
+	writeFile("/Users/hartfield/Documents/SoftSweeps/SLiM/Seeds/SeedsRun" + simID + ".dat", outseed, append=F);
 	sim.addSubpop("p1", N);
 	p1.setSelfingRate(sfrate);
 	sim.rescheduleScriptBlock(s1,BItime,BItime);
@@ -53,8 +48,7 @@ initialize() {
 s1 10 late() {
 	// save the state of the simulation
 	sim.outputFull("/Users/hartfield/Documents/SoftSweeps/SLiM/BIPops/BIPop" + simID + ".dat");
-	muts = sim.mutations;
-	bmut = sample(muts, 1);		// Choosing base neutral mutant to track
+	bmut = sample(sim.mutations, 1);		// Choosing base neutral mutant to track
 	if(exists("MutID"))
 		rm("MutID",removeConstants=T);
 	defineConstant("MutID",bmut.id);
@@ -65,7 +59,7 @@ s1 10 late() {
 // Or goes extinct (either loss or fixation - in any case it is not in memory)
 s2 20 late() {
 	
-	bmut=sim.mutations[sim.mutations.id==MutID];	
+	bmut=sim.mutations[sim.mutations.id==MutID];
 	
 	// Does mutation exist?
 	// If so and at target frequency, changed to selected
@@ -95,7 +89,10 @@ s2 20 late() {
 // Tracking selected mutation block
 // Tracks the selected mutation until fixation or loss
 s3 10 late(){
-		
+	
+	bmut=sim.mutations[sim.mutations.id==MutID];
+	pos=bmut.position;
+	
 	if (sum(sim.mutations.selectionCoeff) == 0.0)
 	{
 		// If lost, reintroduce saved background state and try again
@@ -115,12 +112,13 @@ s3 10 late(){
 		}
 		else
 		{
+			ssub=paste((sim.substitutions[sim.substitutions.selectionCoeff>0].position)/locus_size);
+			writeFile("/Users/hartfield/Documents/SoftSweeps/SLiM/SweepPos/PosRun" + simID + ".dat", ssub, append=F);
 			cat("Sweep mutation reached fixation.\n");
-			// Printing out 10 samples of 10 from the population
-			// Need to add code to print off entire population, and site of mutation
-			sim.outputFull(filePath="/Users/hartfield/Documents/SoftSweeps/SLiM/Populations/Pop" + simID + ".dat");
-			for(i in 0:9){
-				p1.outputSample(10,replace=F,filePath="/Users/hartfield/Documents/SoftSweeps/SLiM/Mutations/Muts" + (10*simID + i) + ".dat");
+			// sim.outputFull(filePath="/Users/hartfield/Documents/SoftSweeps/SLiM/Populations/Pop" + simID + ".dat");
+			// Printing out 10 samples of 'sps' from the population
+			for(i in 1:sps){
+				p1.outputMSSample(sps,replace=F,filePath="/Users/hartfield/Documents/SoftSweeps/SLiM/Mutations/RawMut" + (10*simID + i) + ".dat",append=F,filterMonomorphic=T);
 			}
 			sim.simulationFinished();
 		}
