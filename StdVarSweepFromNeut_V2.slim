@@ -3,21 +3,25 @@
 // Selective sweep at a neutral locus from std variation,
 // given a certain dominance and selfing coefficient
 
+// V2: Now looking for allele within set range of the target X0
+
 // Initialisation block
 // Define population size, selection coefficients etc.
 initialize() {
-	defineConstant("locus_size",100000);		// Size of genotype (L)
-	 defineConstant("N",500);					//	Pop size
-	 defineConstant("Theta",40);				//	Scaled mutation rate, 4NmuL
-	 defineConstant("R",120);					//	Scaled rec rate, 2Nr(L-1)
-	defineConstant("sel",0.05);					// Homozygote selection coefficient
-	defineConstant("BItime",20*N);				// Burn-in time
-	defineConstant("EndTime",100*N);				// Stop simulation at this time if nothing has happened
-	 defineConstant("x0",0.05);					//	Frequency of neutral mutation when it became selected for
-	 defineConstant("h",0.5);					//	Dominance coefficient
-	 defineConstant("sfrate",0.5);				//	Self-fertiliastion frequency
-	 defineConstant("simID",0);					//	Index for printing out files
-	 defineConstant("sps",10);	 
+	defineConstant("locus_size",100000);	// Size of genotype (L)
+	defineConstant("N",500);					//	Pop size
+	defineConstant("Theta",40);				//	Scaled mutation rate, 4NmuL
+	defineConstant("R",120);					//	Scaled rec rate, 2Nr(L-1)
+	defineConstant("sel",0.05);				// Homozygote selection coefficient
+	defineConstant("BItime",20*N);			// Burn-in time
+	defineConstant("EndTime",100*N);			// Stop simulation at this time if nothing has happened
+	defineConstant("x0",0.05);					//	Frequency of neutral mutation when it became selected for
+	defineConstant("h",0.5);					//	Dominance coefficient
+	defineConstant("sfrate",0.5);				//	Self-fertiliastion frequency
+	defineConstant("simID",0);					//	Index for printing out files
+	defineConstant("sps",10);					// Number of times to sample from final population
+	defineConstant("lx0",x0-0.005);	 		// Lower bound of neutral mutation to choose from
+	defineConstant("ux0",x0+0.005);	 		// Upper bound of neutral mutation to choose from
 	
 	mu = Theta/(4*N*locus_size);
 	rbp = R/(2*N*(locus_size-1));
@@ -39,60 +43,47 @@ initialize() {
 	sim.addSubpop("p1", N);
 	p1.setSelfingRate(sfrate);
 	sim.rescheduleScriptBlock(s1,BItime,BItime);
-	sim.rescheduleScriptBlock(s2,BItime,EndTime);
-	sim.rescheduleScriptBlock(s3,EndTime+1,EndTime+1);
+	sim.rescheduleScriptBlock(s3,BItime,EndTime);
 	sim.rescheduleScriptBlock(s4,EndTime,EndTime);
 }
 
 // 'Choosing mutation' block
 // Picks a random neutral mutation to track
+// Sets it as selected then tracks it
 s1 10 late() {
 	// save the state of the simulation
 	sim.outputFull("/Users/hartfield/Documents/SoftSweeps/SLiM/BIPops/BIPop" + simID + ".dat");
-	bmut = sample(sim.mutations, 1);		// Choosing base neutral mutant to track
-	if(exists("MutID"))
-		rm("MutID",removeConstants=T);
-	defineConstant("MutID",bmut.id);
-}
-
-// Tracking mutation block
-// Tracks chosen neutral mutation until it reaches target frequency
-// Or goes extinct (either loss or fixation - in any case it is not in memory)
-s2 20 late() {
-	
-	bmut=sim.mutations[sim.mutations.id==MutID];
-	
-	// Does mutation exist?
-	// If so and at target frequency, changed to selected
-	doexist = size(bmut);
-	if(doexist)
-		if((sim.mutationFrequencies(p1, bmut) == x0))
-		{
-			bmut.setSelectionCoeff(sel);
-			ct=sim.generation;
-			sim.rescheduleScriptBlock(s2,EndTime+1,EndTime+1);
-			sim.rescheduleScriptBlock(s3,ct+1,EndTime);
-			sim.rescheduleScriptBlock(s4,EndTime,EndTime);
-		}
-	
-	//	If does not exist, re-do mutation choosing block
-	// and re-time other blocks accordingly
-	if(!doexist)
+	muts = sim.mutations;
+	muts = muts[sim.mutationFrequencies(p1, muts) == x0];
+//	print(size(muts));
+//	print(sim.mutationFrequencies(p1,muts));
+//	print(muts.id);
+	if(size(muts) == 0)
 	{
-		ct=sim.generation;
-		sim.rescheduleScriptBlock(s1,ct+1,ct+1);
-		sim.rescheduleScriptBlock(s2,ct+1,EndTime);
-		sim.rescheduleScriptBlock(s4,EndTime,EndTime);
-	}
-
+		muts = sim.mutations;
+		muts = muts[((sim.mutationFrequencies(p1, muts) > lx0) & (sim.mutationFrequencies(p1, muts) < ux0))];
+//		print(size(muts));
+//		print(sim.mutationFrequencies(p1,muts));
+//		print(muts.id);
+		if(size(muts) == 0)
+		{
+			cat("NO SUITABLE MUTATION FOUND AT BURN IN.\n");
+			sim.simulationFinished();
+		}
+	}	
+	bmut = sample(muts, 1);
+//	if(exists("MutID"))
+//		rm("MutID",removeConstants=T);
+//	defineConstant("MutID",bmut.id);
+//	print(bmut.id);
+	bmut.setSelectionCoeff(sel);
+	ct=sim.generation;
+//	sim.simulationFinished();
 }
 
 // Tracking selected mutation block
 // Tracks the selected mutation until fixation or loss
 s3 10 late(){
-	
-	bmut=sim.mutations[sim.mutations.id==MutID];
-	pos=bmut.position;
 	
 	if (sum(sim.mutations.selectionCoeff) == 0.0)
 	{
@@ -107,8 +98,7 @@ s3 10 late(){
 			// Resetting block schedules
 			ct=sim.generation;
 			sim.rescheduleScriptBlock(s1,ct+1,ct+1);
-			sim.rescheduleScriptBlock(s2,ct+1,EndTime);
-			sim.rescheduleScriptBlock(s3,EndTime+1,EndTime+1);
+			sim.rescheduleScriptBlock(s3,ct+1,EndTime);
 			sim.rescheduleScriptBlock(s4,EndTime,EndTime);
 		}
 		else
