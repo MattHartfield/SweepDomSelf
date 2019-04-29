@@ -1,7 +1,6 @@
-// Mon 14th Jan 2019
 // Modification of recipe 10.2
 // Hard selective sweep with selfing, conditional on fixation
-// V2: If sweep is lost then seed is re-drawn from random dist, mutation reintroduced
+// See README for running information
 
 // Initialisation block
 // Define population size, selection coefficients etc.
@@ -9,19 +8,9 @@ initialize() {
 	defineConstant("locus_size",100000);	// Size of genotype (L)
 	defineConstant("sel",0.05);				// Homozygote selection coefficient
 	
-//	defineConstant("N",500);					//	Pop size
-//	defineConstant("Theta",40);				//	Scaled mutation rate, 4NmuL
-//	defineConstant("R",120);					//	Scaled rec rate, 2Nr(L-1)
-//	defineConstant("h",0.5);					//	Dominance coefficient
-//	defineConstant("sfrate",0.5);				//	Self-fertiliastion frequency
-//	defineConstant("simID",0);					//	Index for printing out files
-//	defineConstant("sps",10);					// Number of samples to take
-//	defineConstant("numsamp",10);				// Number of times to sample from final population
-	
 	defineConstant("BItime",20*N);			// Burn-in time
 	defineConstant("EndTime",100*N);			// End simulation here if no sweep fixes
-	defineConstant("MaxSeed",10*(getSeed()));	// Max seed to draw from	
-	
+
 	mu = Theta/(4*N*locus_size);
 	rbp = R/(2*N*(locus_size-1));
 	
@@ -31,7 +20,7 @@ initialize() {
 	m1.mutationStackPolicy = "f";
 	m2.mutationStackPolicy = "f";
 	initializeGenomicElementType("g1", m1, 1.0);
-	initializeGenomicElement(g1, 0, (locus_size-1));
+	initializeGenomicElement(g1, 0, (locus_size-1));	// Note 'locus_size - 1' since initiating from 0
 	initializeRecombinationRate(rbp);
 }
 
@@ -49,8 +38,6 @@ initialize() {
 }
 
 // 'Choosing mutation' block
-// Sees if there exists mutation at frequency x0
-// If so, set to selected
 s1 10 late() {
 	// save the state of the simulation
 	sim.outputFull("BIPops/BIPop" + simID + ".dat");
@@ -83,13 +70,7 @@ s3 10 late(){
 			cat("Sweep mutation lost in gen. " + sim.generation + "\n");
 			sim.readFromPopulationFile("BIPops/BIPop" + simID + ".dat");
 			// start a newly seeded run by incrementing the previous seed
-			setSeed(rdunif(1,0,MaxSeed));
-			
-			// Resetting block schedules
-//			ct=sim.generation;
-//			sim.rescheduleScriptBlock(s1,ct,ct);
-//			sim.rescheduleScriptBlock(s3,ct+1,EndTime);
-//			sim.rescheduleScriptBlock(s4,EndTime,EndTime);
+			setSeed(rdunif(1,0,asInteger(2^32) - 1));
 
 			// introduce the sweep mutation, resetting selfing rate
 			p1.setSelfingRate(sfrate);
