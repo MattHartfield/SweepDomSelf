@@ -1,6 +1,6 @@
 README FOR DOM SELF SWEEP FILES
 
-Scripts used to simulate neutral diversity around a sweeping beneficial allele, while considering arbitrary levels of self-fertilisation and dominance. As used in the study "Selective sweeps under dominance and self-fertilisation". SLiM is available from https://messerlab.org/slim/.
+Scripts used to simulate neutral diversity around a sweeping beneficial allele, while considering arbitrary levels of self-fertilisation and dominance. As used in the study "Selective sweeps under dominance and inbreeding". SLiM is available from https://messerlab.org/slim/.
 
 ***SLiM Files***
 
