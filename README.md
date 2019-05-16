@@ -68,3 +68,5 @@ Where:
 Rscript DataScriptBatch_Bins.R l s th rec h nsites
 
 Where the parameters are as above, and 'nsites' the number of nucleotides across the entire haplotype.
+
+Comments to m.hartfield@ed.ac.uk.
