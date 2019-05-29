@@ -20,6 +20,8 @@ TOT=$(($NPS*$REPS))
 
 source /com/extra/R/LATEST/load.sh
 rm Sim*
+rm Mutations/MT_* Mutations/Muts_*
+rm *.out
 
 # Preparing MS output files to input standard
 for ((i=1; i<=TOT; i++));
@@ -31,4 +33,4 @@ do
  	tail -n +4 $j > $k
 done
 
-Rscript DataScriptBatch_Bins.R $TOT $SAMPS $THETA $REC $DOM $SELF $IX
+Rscript DataScriptBatch_Bins.R $TOT $SAMPS $THETA $REC $DOM $SELF $IX 0
