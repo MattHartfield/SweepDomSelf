@@ -63,10 +63,4 @@ Where:
 - f0 = Starting frequency of sweep when it started to be selected for
 - sw = Switch to determine output file name (0 = 'SLIM'; 1 = 'MSMS')
 
-'DataScriptBatch_Bins_wScaledPi.R' is a version that considers finite number of nucleotides per bin, as used for the growth-bottleneck simulations. It is run using:
-
-Rscript DataScriptBatch_Bins.R l s th rec h nsites
-
-Where the parameters are as above, and 'nsites' the number of nucleotides across the entire haplotype.
-
 Comments to m.hartfield@ed.ac.uk.
